@@ -1,6 +1,6 @@
 # Representative AWS Terraform Stack
 
-This directory provisions a minimal but real AWS environment that exercises the services listed in `terraform-plan.md`.
+This directory provisions a minimal but real AWS environment that exercises the services listed in [PLAN.md](../PLAN.md).
 
 ## Before Terraform
 
