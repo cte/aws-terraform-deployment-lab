@@ -1,0 +1,9 @@
+aws_profile             = null
+aws_region              = "us-east-2"
+project                 = "ember-migration"
+environment             = "test"
+create_iam_roles        = false
+assets_bucket_name      = "ember-migration-assets"
+ecs_execution_role_name = "ember-migration-ecs-execution-role"
+ecs_task_role_name      = "ember-migration-ecs-task-role"
+app_image_tag           = "20260327-102006-amd64"

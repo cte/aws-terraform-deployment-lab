@@ -1,0 +1,44 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:worker": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "format": {
+      "cache": false
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "fmt": {
+      "cache": false
+    },
+    "init": {
+      "cache": false
+    },
+    "validate": {
+      "cache": false
+    },
+    "plan": {
+      "cache": false
+    },
+    "apply": {
+      "cache": false
+    },
+    "destroy": {
+      "cache": false
+    }
+  }
+}

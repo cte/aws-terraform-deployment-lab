@@ -1,0 +1,13 @@
+# Copy to external-iam-validation.tfvars and adjust for the target account.
+# Optional. Leave null or omit when using environment variables instead of a named profile.
+aws_profile      = "aws-profile-name"
+aws_region       = "us-east-2"
+project          = "ember-migration"
+environment      = "validation"
+create_iam_roles = false
+app_image_tag    = "replace-with-image-tag"
+
+# Optional overrides if the pre-created roles use names that differ from the defaults.
+ecs_execution_role_name = "ember-migration-ecs-execution-role"
+ecs_task_role_name      = "ember-migration-ecs-task-role"
+# rds_monitoring_role_name = "ember-migration-rds-monitoring-role"

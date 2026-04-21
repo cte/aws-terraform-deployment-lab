@@ -1,5 +1,0 @@
-bucket  = "replace-with-state-bucket-name"
-key     = "ember-migration/test/terraform.tfstate"
-region  = "us-east-1"
-profile = "lawfirm-dev"
-encrypt = true

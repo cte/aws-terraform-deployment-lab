@@ -1,0 +1,13 @@
+{
+  "name": "@ember-migration/terraform",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "fmt": "terraform fmt -recursive",
+    "init": "terraform init -reconfigure -backend-config=backend.hcl",
+    "validate": "terraform validate",
+    "plan": "terraform plan -out=tfplan",
+    "apply": "terraform apply tfplan",
+    "destroy": "terraform destroy"
+  }
+}

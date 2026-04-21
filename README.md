@@ -15,6 +15,8 @@ handoff, and an externally managed IAM validation path in one place.
 
 ## What Is In Here
 
+- A `pnpm` workspace with `turbo` orchestration
+- A root `.env` managed with `dotenvx`, with only `AWS_SECRET_ACCESS_KEY` encrypted
 - A Vite + React + TanStack Router front-end using shadcn/ui and Tailwind 4
 - A Fastify + Zod API
 - A BullMQ worker backed by Redis
@@ -51,19 +53,104 @@ Infrastructure flow:
 ## Repo Layout
 
 ```text
-app/         Application source, Dockerfile, and local dev docs
-terraform/   Terraform project, IAM handoff docs, policies, and validation scripts
+packages/app         Application source, Dockerfile, and local dev docs
+packages/terraform   Terraform project, IAM handoff docs, policies, and validation scripts
 ```
 
 Key files:
 
-- [app/README.md](./app/README.md): app-specific local development notes
-- [terraform/README.md](./terraform/README.md): Terraform workflow notes
-- [terraform/iam-handoff.md](./terraform/iam-handoff.md): concise IAM handoff
-- [terraform/terraform-runner-permissions.md](./terraform/terraform-runner-permissions.md):
+- [AWS_ACCOUNT_STATUS.md](./AWS_ACCOUNT_STATUS.md): verified AWS account state, blockers, and readiness checks
+- [GETTING_STARTED.md](./GETTING_STARTED.md): concrete onboarding steps for a new engineer
+- [packages/app/README.md](./packages/app/README.md): app-specific local development notes
+- [packages/terraform/README.md](./packages/terraform/README.md): Terraform workflow notes
+- [packages/terraform/iam-handoff.md](./packages/terraform/iam-handoff.md): concise IAM handoff
+- [packages/terraform/terraform-runner-permissions.md](./packages/terraform/terraform-runner-permissions.md):
   CloudTrail-derived runner analysis
-- [terraform/external-iam-validation.md](./terraform/external-iam-validation.md):
+- [packages/terraform/external-iam-validation.md](./packages/terraform/external-iam-validation.md):
   externally managed IAM validation harness
+
+## Workspace Tooling
+
+The repo now runs as a `pnpm` workspace rooted here.
+
+- `turbo` orchestrates package scripts from the workspace root.
+- `dotenvx` protects the root `.env` file while allowing non-secret AWS values to stay
+  in plaintext and keeping `AWS_SECRET_ACCESS_KEY` encrypted.
+- `packages/app/.env` remains package-local and holds non-secret application config
+  for local development.
+- Commit the root `.env`. Keep `.env.keys` local and out of version control.
+
+## AWS Auth
+
+This repo currently supports four AWS auth paths:
+
+1. Repo-managed root `.env` plus local `.env.keys`
+2. AWS SSO via IAM Identity Center
+3. A named shared-credentials profile backed by an access key
+4. Ambient environment variables
+
+The current default is option 1.
+
+### Default Repo-Managed Credentials
+
+The root workspace scripts use `dotenvx` and the root `.env` file:
+
+```bash
+pnpm aws:whoami
+pnpm dev
+pnpm dev:worker
+pnpm terraform:init
+pnpm terraform:plan
+pnpm terraform:apply
+```
+
+This is the current local default because:
+
+- [packages/terraform/terraform.tfvars](./packages/terraform/terraform.tfvars) sets `aws_profile = null`
+- your local `packages/terraform/backend.hcl` should omit `profile`
+- the root `pnpm` scripts inject AWS environment variables from the root `.env`
+
+### Optional SSO Flow
+
+If you want to use SSO instead, configure a profile with the AWS CLI:
+
+```bash
+aws configure sso --profile <sso-profile>
+aws sso login --profile <sso-profile>
+aws sts get-caller-identity --profile <sso-profile>
+```
+
+Then update:
+
+- [packages/terraform/terraform.tfvars](./packages/terraform/terraform.tfvars) with `aws_profile = "<sso-profile>"`
+- your local `packages/terraform/backend.hcl` with `profile = "<sso-profile>"`
+
+For SSO-backed Terraform runs, use direct commands from
+[packages/terraform](./packages/terraform) rather than the root `pnpm`
+wrappers, because the root wrappers intentionally inject the repo-managed AWS
+environment variables from `.env`.
+
+### Optional Named Access-Key Profile
+
+If you prefer a named shared-credentials profile instead of the repo-managed
+root `.env`, configure it with:
+
+```bash
+aws configure --profile <access-key-profile>
+aws sts get-caller-identity --profile <access-key-profile>
+```
+
+Then set the same `aws_profile` and backend `profile` values described above.
+
+### Optional Ambient Environment Variables
+
+If your shell already has AWS credentials exported, Terraform can use the
+default AWS credential chain directly. In that case:
+
+- set `aws_profile = null` in [packages/terraform/terraform.tfvars](./packages/terraform/terraform.tfvars)
+- omit `profile` from your local `packages/terraform/backend.hcl`
+- use direct commands from [packages/terraform](./packages/terraform) rather than the
+  root `pnpm` wrappers if you do not want the repo-managed `.env` values injected
 
 ## Application Stack
 
@@ -122,13 +209,13 @@ the pre-created roles use names that differ from the defaults.
 This repo now contains three distinct IAM outputs:
 
 1. Runtime/service-role requirements for externally managed IAM:
-   [terraform/iam-handoff.md](./terraform/iam-handoff.md)
+   [packages/terraform/iam-handoff.md](./packages/terraform/iam-handoff.md)
 2. CloudTrail-derived Terraform runner analysis:
-   [terraform/terraform-runner-permissions.md](./terraform/terraform-runner-permissions.md)
+   [packages/terraform/terraform-runner-permissions.md](./packages/terraform/terraform-runner-permissions.md)
 3. Draft runner policies:
-   [terraform/policies/terraform-runner-external-iam.json](./terraform/policies/terraform-runner-external-iam.json)
+   [packages/terraform/policies/terraform-runner-external-iam.json](./packages/terraform/policies/terraform-runner-external-iam.json)
    and
-   [terraform/policies/terraform-runner-self-managed-bootstrap.json](./terraform/policies/terraform-runner-self-managed-bootstrap.json)
+   [packages/terraform/policies/terraform-runner-self-managed-bootstrap.json](./packages/terraform/policies/terraform-runner-self-managed-bootstrap.json)
 
 These are intentionally separate because the Terraform runner, the ECS task
 execution role, and the ECS task role solve different problems.
@@ -140,10 +227,10 @@ around this exact Terraform stack.
 
 The harness lives in:
 
-- [terraform/scripts/preflight-external-iam.sh](./terraform/scripts/preflight-external-iam.sh)
-- [terraform/scripts/run-external-iam-validation.sh](./terraform/scripts/run-external-iam-validation.sh)
-- [terraform/external-iam-validation.tfvars.example](./terraform/external-iam-validation.tfvars.example)
-- [terraform/external-iam-validation.md](./terraform/external-iam-validation.md)
+- [packages/terraform/scripts/preflight-external-iam.sh](./packages/terraform/scripts/preflight-external-iam.sh)
+- [packages/terraform/scripts/run-external-iam-validation.sh](./packages/terraform/scripts/run-external-iam-validation.sh)
+- [packages/terraform/external-iam-validation.tfvars.example](./packages/terraform/external-iam-validation.tfvars.example)
+- [packages/terraform/external-iam-validation.md](./packages/terraform/external-iam-validation.md)
 
 What it does:
 
@@ -161,11 +248,18 @@ into Terraform without introducing a second codebase that can drift.
 
 ## Local Development
 
+Install the workspace dependencies once at the root:
+
+```bash
+pnpm install
+```
+
 Application:
 
 ```bash
-cd app
-docker compose up -d
+cp packages/app/.env.example packages/app/.env
+docker compose -f packages/app/docker-compose.yml up -d
+pnpm aws:whoami
 pnpm dev
 pnpm dev:worker
 ```
@@ -173,12 +267,14 @@ pnpm dev:worker
 Infrastructure:
 
 ```bash
-cd terraform
-aws sso login --profile <profile>
-terraform init -backend-config=backend.hcl
-terraform plan -out=tfplan
-terraform apply tfplan
+pnpm terraform:init
+pnpm terraform:plan
+pnpm terraform:apply
 ```
+
+The root `pnpm` scripts above use `dotenvx` and the root `.env` for
+AWS credentials. See [packages/terraform/README.md](./packages/terraform/README.md)
+for the direct Terraform workflow and alternate auth options.
 
 ## Deployment Notes
 
@@ -197,8 +293,9 @@ The safe image publish pattern is:
 docker buildx build \
   --platform linux/amd64 \
   --push \
+  -f packages/app/Dockerfile \
   -t <ecr-repository-url>:<tag> \
-  app
+  .
 ```
 
 ## Current State
@@ -209,6 +306,8 @@ The repository currently includes:
 - A documented IAM handoff
 - CloudTrail-derived runner policy drafts
 - An externally managed IAM validation harness
+- A `pnpm` workspace root with `turbo` and `dotenvx`-managed AWS credentials
+- Both repo-managed access-key auth and optional SSO/profile-based auth paths
 
 The current test deployment is intentionally disposable. Treat any live ALB
 hostname or account-specific values as environment data, not stable product
@@ -219,7 +318,7 @@ interfaces.
 If you are new to the repo, read in this order:
 
 1. This file
-2. [terraform/iam-handoff.md](./terraform/iam-handoff.md)
-3. [terraform/external-iam-validation.md](./terraform/external-iam-validation.md)
-4. [terraform/README.md](./terraform/README.md)
-5. [app/README.md](./app/README.md)
+2. [packages/terraform/iam-handoff.md](./packages/terraform/iam-handoff.md)
+3. [packages/terraform/external-iam-validation.md](./packages/terraform/external-iam-validation.md)
+4. [packages/terraform/README.md](./packages/terraform/README.md)
+5. [packages/app/README.md](./packages/app/README.md)

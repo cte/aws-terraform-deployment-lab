@@ -1,0 +1,13 @@
+.git
+.gitignore
+.turbo
+node_modules
+.env
+.env.keys
+packages/*/node_modules
+packages/app/.env
+packages/app/dist
+packages/terraform/.terraform
+packages/terraform/tfplan
+packages/terraform/backend.hcl
+packages/terraform/local.auto.tfvars

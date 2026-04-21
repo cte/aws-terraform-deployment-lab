@@ -1,0 +1,6 @@
+bucket  = "replace-with-state-bucket-name"
+key     = "ember-migration/test/terraform.tfstate"
+region  = "us-east-2"
+# Optional when using a named shared config / shared credentials profile.
+profile = "aws-profile-name"
+encrypt = true
