@@ -48,7 +48,7 @@ Notes:
 
 ```bash
 git clone <repo-url>
-cd gd-infra
+cd aws-terraform-deployment-lab
 pnpm install
 ```
 
