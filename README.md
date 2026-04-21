@@ -1,4 +1,4 @@
-# Ember Migration Lab
+# AWS Terraform Deployment Lab
 
 This repository is a small but real end-to-end AWS verification project for an
 Ember migration effort.
