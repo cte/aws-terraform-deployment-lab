@@ -36,6 +36,9 @@ Terraform expects these roles to already exist when `create_iam_roles = false`.
 
 - Name: `ember-migration-ecs-execution-role`
 - Trust principal: `ecs-tasks.amazonaws.com`
+- Console-ready JSONs:
+  - Trust policy: [policies/ecs-execution-role-trust-policy.json](./policies/ecs-execution-role-trust-policy.json)
+  - Inline policy: [policies/ecs-execution-role-inline-policy.json](./policies/ecs-execution-role-inline-policy.json)
 - Purpose: lets ECS pull the image, publish logs, and resolve startup configuration from SSM and Secrets Manager
 - Required actions:
   - `ecr:GetAuthorizationToken`
@@ -56,6 +59,9 @@ Terraform expects these roles to already exist when `create_iam_roles = false`.
 
 - Name: `ember-migration-ecs-task-role`
 - Trust principal: `ecs-tasks.amazonaws.com`
+- Console-ready JSONs:
+  - Trust policy: [policies/ecs-task-role-trust-policy.json](./policies/ecs-task-role-trust-policy.json)
+  - Inline policy: [policies/ecs-task-role-inline-policy.json](./policies/ecs-task-role-inline-policy.json)
 - Purpose: application runtime access to the assets bucket for uploads and processed results
 - Current minimum actions used by the deployed app:
   - `s3:ListBucket`
