@@ -10,7 +10,7 @@ resource "random_string" "bucket_suffix" {
 
 locals {
   bucket_prefix         = replace(lower(var.name_prefix), "_", "-")
-  generated_bucket_name = substr("${local.bucket_prefix}-assets-${random_string.bucket_suffix[0].result}", 0, 63)
+  generated_bucket_name = try(substr("${local.bucket_prefix}-assets-${random_string.bucket_suffix[0].result}", 0, 63), null)
   bucket_name           = coalesce(var.bucket_name, local.generated_bucket_name)
 }
 

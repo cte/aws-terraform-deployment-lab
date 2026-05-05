@@ -5,12 +5,22 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TERRAFORM_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 APP_DIR=$(cd "${TERRAFORM_DIR}/../app" && pwd)
+REPO_DIR=$(cd "${TERRAFORM_DIR}/../.." && pwd)
 PREFLIGHT_SCRIPT="${SCRIPT_DIR}/preflight-external-iam.sh"
 
 TFVARS_FILE=""
 BACKEND_CONFIG=""
 APPLY_CHANGES=0
 DESTROY_AFTER=0
+
+resolve_path() {
+  local path="$1"
+  if [[ "${path}" = /* ]]; then
+    printf '%s\n' "${path}"
+  else
+    printf '%s\n' "$(cd "$(dirname "${path}")" && pwd)/$(basename "${path}")"
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -120,6 +130,9 @@ if [[ "${DESTROY_AFTER}" -eq 1 && "${APPLY_CHANGES}" -ne 1 ]]; then
   exit 1
 fi
 
+TFVARS_FILE=$(resolve_path "${TFVARS_FILE}")
+BACKEND_CONFIG=$(resolve_path "${BACKEND_CONFIG}")
+
 require_bin aws
 require_bin terraform
 require_bin curl
@@ -155,6 +168,7 @@ account_id=$(aws_with_auth "${aws_profile}" "${aws_region}" sts get-caller-ident
 resource_prefix=$(printf '%s-%s' "${project}" "${environment}" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 repository_name="${resource_prefix}/app"
 repository_url="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/${repository_name}"
+registry_url="${account_id}.dkr.ecr.${aws_region}.amazonaws.com"
 plan_file=$(mktemp "${TMPDIR:-/tmp}/external-iam-validation-plan.XXXXXX")
 
 terraform -chdir="${TERRAFORM_DIR}" init -reconfigure -backend-config="${BACKEND_CONFIG}"
@@ -173,11 +187,17 @@ terraform -chdir="${TERRAFORM_DIR}" apply \
   -target=module.compute.aws_ecr_lifecycle_policy.this \
   -auto-approve
 
+aws_with_auth "${aws_profile}" "${aws_region}" ecr get-login-password \
+  | docker login \
+      --username AWS \
+      --password-stdin "${registry_url}"
+
 docker buildx build \
   --platform linux/amd64 \
   --push \
+  -f "${APP_DIR}/Dockerfile" \
   -t "${repository_url}:${app_image_tag}" \
-  "${APP_DIR}"
+  "${REPO_DIR}"
 
 terraform -chdir="${TERRAFORM_DIR}" apply \
   -var-file="${TFVARS_FILE}" \

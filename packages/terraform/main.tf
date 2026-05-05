@@ -66,6 +66,8 @@ module "loadbalancer" {
   public_subnet_ids     = module.networking.public_subnet_ids
   alb_security_group_id = module.networking.alb_security_group_id
   tags                  = local.tags
+
+  depends_on = [module.networking]
 }
 
 module "compute" {
@@ -85,11 +87,4 @@ module "compute" {
   redis_endpoint        = module.cache.redis_primary_endpoint
   image_tag             = var.app_image_tag
   tags                  = local.tags
-
-  depends_on = [
-    module.loadbalancer,
-    module.database,
-    module.cache,
-    module.iam,
-  ]
 }

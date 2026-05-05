@@ -18,6 +18,7 @@ Checks that an externally managed IAM validation run has the prerequisites this 
 - AWS credentials are valid
 - backend state bucket is reachable
 - pre-created IAM roles exist with the expected trust principals
+- required AWS service-linked roles exist
 - docker buildx is available when a deploy run will build and push an image
 EOF
 }
@@ -99,6 +100,18 @@ check_role() {
   fi
 
   echo "Verified role ${role_name} trusts ${principal}"
+}
+
+check_role_exists() {
+  local profile="$1"
+  local region="$2"
+  local role_name="$3"
+
+  aws_with_auth "${profile}" "${region}" iam get-role \
+    --role-name "${role_name}" \
+    >/dev/null
+
+  echo "Verified role ${role_name} exists"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -211,6 +224,10 @@ fi
 
 check_role "${aws_profile}" "${aws_region}" "${ecs_execution_role_name}" "ecs-tasks.amazonaws.com"
 check_role "${aws_profile}" "${aws_region}" "${ecs_task_role_name}" "ecs-tasks.amazonaws.com"
+check_role_exists "${aws_profile}" "${aws_region}" "AWSServiceRoleForECS"
+check_role_exists "${aws_profile}" "${aws_region}" "AWSServiceRoleForElasticLoadBalancing"
+check_role_exists "${aws_profile}" "${aws_region}" "AWSServiceRoleForRDS"
+check_role_exists "${aws_profile}" "${aws_region}" "AWSServiceRoleForElastiCache"
 
 rds_role_exists=0
 if aws_with_auth "${aws_profile}" "${aws_region}" iam get-role \

@@ -172,17 +172,29 @@ Verified working:
 - Terraform backend access
 - ECR auth token retrieval
 - Terraform backend in `us-east-2`
+- `ember-migration-ecs-execution-role` exists with correct trust
+- `ember-migration-ecs-task-role` exists with correct trust
+- `AWSServiceRoleForECS` exists
+- `AWSServiceRoleForElasticLoadBalancing` exists
+- `AWSServiceRoleForRDS` exists
+- `AWSServiceRoleForElastiCache` exists
+- external-IAM preflight passes
+- Terraform plan succeeds
+- the long-lived keypair can now register ECS task definitions
+- `iam:PassRole` is effectively in place for the ECS roles
+- full `terraform apply` succeeds
+- deployed ALB health checks return `200`
+- full `terraform destroy` succeeds
 
 Current known blockers for a full Terraform deploy:
 
-- missing `ember-migration-ecs-execution-role`
-- missing `ember-migration-ecs-task-role`
-- missing `AWSServiceRoleForElasticLoadBalancing`
-- missing `AWSServiceRoleForRDS`
-- missing `AWSServiceRoleForElastiCache`
+- none currently confirmed for the checked stack shape
 
-Because `create_iam_roles = false`, these missing roles are the expected first
-failure point in preflight and plan.
+Current stack status:
+
+- the validation stack was intentionally torn down after a successful deploy
+- rerun `pnpm terraform:apply` to recreate it
+- pre-created IAM roles and AWS service-linked roles remain in the account
 
 ## Observability Limits
 

@@ -1,7 +1,7 @@
 # AWS Account Status
 
 This document captures the current known state of the shared AWS test account
-and what is still required to make this Terraform stack deployable.
+and the deployability status of this Terraform stack.
 
 It is based on direct AWS CLI checks performed from this repo using the current
 deploy credentials, plus actual Terraform behavior against the live account.
@@ -36,29 +36,50 @@ The following are currently verified:
 - Terraform backend initialization works via:
   - `pnpm terraform:init`
 - ECR auth token retrieval works for the current deploy principal
-- Terraform preflight reaches the IAM lookup stage successfully
+- `ember-migration-ecs-execution-role` exists and trusts `ecs-tasks.amazonaws.com`
+- `ember-migration-ecs-task-role` exists and trusts `ecs-tasks.amazonaws.com`
+- the attached policies on those ECS roles match the current Terraform definitions
+- `AWSServiceRoleForECS` exists
+- `AWSServiceRoleForElasticLoadBalancing` exists
+- `AWSServiceRoleForRDS` exists
+- `AWSServiceRoleForElastiCache` exists
+- external-IAM preflight passes
+- Terraform plan succeeds in `us-east-2`
+- the deploy user can now register ECS task definitions successfully
+- `iam:PassRole` is now effectively working for the ECS execution/task roles
+- full `terraform apply` succeeds
+- the deployed ALB health endpoint returns `200`
+- full `terraform destroy` succeeds
+- the stack can be recreated cleanly after destroy because the database password
+  secret now uses immediate deletion semantics
 
 This means local setup and baseline AWS access are working.
 
 ## Current Known Blockers
 
-The stack is not yet deployable because these IAM dependencies are still
-missing from the account:
+There are no currently confirmed AWS-side blockers for the checked stack shape.
 
-- `ember-migration-ecs-execution-role`
-- `ember-migration-ecs-task-role`
-- `AWSServiceRoleForElasticLoadBalancing`
-- `AWSServiceRoleForRDS`
-- `AWSServiceRoleForElastiCache`
+Current observed deploy behavior:
+
+- Terraform gets through backend init, plan, ECR push, networking, ALB, RDS,
+  ElastiCache, ECS cluster creation, ECS task definition registration, and ECS
+  service creation
+- the stack comes up healthy behind the ALB
+- Terraform destroy removes the deployed resources cleanly
 
 Current observed preflight behavior:
 
 - credentials are valid
 - backend bucket is reachable
-- preflight then fails on:
-  - missing `ember-migration-ecs-execution-role`
+- ECS execution role exists and has the expected trust policy
+- ECS task role exists and has the expected trust policy
+- required AWS service-linked roles exist
 
-That is the expected first failure in the current configuration.
+Current observed plan behavior:
+
+- `terraform plan` succeeds
+- the plan now targets `us-east-2`
+- there are no current plan-time blockers
 
 ## Required IAM Resources
 
@@ -93,15 +114,17 @@ Important correction versus the earliest handoff:
 
 ### AWS service-linked roles
 
-These must exist in the account:
+These must exist in the account for this stack shape. They are currently
+present in the shared test account:
 
+- `AWSServiceRoleForECS`
 - `AWSServiceRoleForElasticLoadBalancing`
 - `AWSServiceRoleForRDS`
 - `AWSServiceRoleForElastiCache`
 
 Alternative:
 
-- instead of pre-creating those three service-linked roles, the account owner
+- instead of pre-creating those four service-linked roles, the account owner
   could temporarily allow:
   - `iam:CreateServiceLinkedRole`
   - on `arn:aws:iam::671922733475:user/ember-terraform`
@@ -135,6 +158,9 @@ pnpm exec dotenvx run -fk .env.keys -f .env -- \
   aws iam get-role --role-name ember-migration-ecs-task-role
 
 pnpm exec dotenvx run -fk .env.keys -f .env -- \
+  aws iam get-role --role-name AWSServiceRoleForECS
+
+pnpm exec dotenvx run -fk .env.keys -f .env -- \
   aws iam get-role --role-name AWSServiceRoleForElasticLoadBalancing
 
 pnpm exec dotenvx run -fk .env.keys -f .env -- \
@@ -144,8 +170,10 @@ pnpm exec dotenvx run -fk .env.keys -f .env -- \
   aws iam get-role --role-name AWSServiceRoleForElastiCache
 ```
 
-If the IAM side is ready, preflight should pass and `pnpm terraform:plan`
-should proceed past the IAM lookup stage.
+If the IAM side is ready, preflight should pass and `terraform apply` should
+complete successfully.
+
+That is the current observed state.
 
 ## Observability Limits
 
@@ -170,14 +198,15 @@ When in doubt, trust:
 - Terraform preflight output
 - real `terraform plan` and `terraform apply` behavior
 
-## Not Fully Re-Verified Here
+## Remaining Unknowns
 
-The following are not the current blocker and were not fully re-audited in this
-document:
+The following are not currently failing, but they were not exhaustively
+re-audited in this document:
 
 - exact internal attachment of the Terraform runner policy
 - full SSO permission-set wiring
-- the full image-push permission surface beyond confirmed ECR auth token access
+- behavior for future stack changes outside the current Terraform shape
+- account-level quotas or organization guardrails unrelated to the validated path
 
-Those may still matter operationally, but they are not the current reason
-Terraform is blocked.
+Those may still matter operationally, but they are not blocking the validated
+deploy/destroy path today.

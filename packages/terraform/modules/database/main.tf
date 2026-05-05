@@ -15,8 +15,9 @@ resource "random_password" "db" {
 }
 
 resource "aws_secretsmanager_secret" "db_password" {
-  name        = "${local.resource_prefix}/database/password"
-  description = "Representative PostgreSQL password for the Terraform exercise."
+  name                    = "${local.resource_prefix}/database/password"
+  description             = "Representative PostgreSQL password for the Terraform exercise."
+  recovery_window_in_days = 0
 
   tags = merge(var.tags, {
     Name = "${local.resource_prefix}-db-password"
